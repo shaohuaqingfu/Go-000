@@ -17,3 +17,15 @@ func main() {
 		return
 	}
 }
+
+type errString struct {
+	s string
+}
+
+func New(msg string) errString {
+	return errString{s: msg}
+}
+
+func (e *errString) Error() string {
+	return e.s
+}
