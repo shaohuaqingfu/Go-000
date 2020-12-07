@@ -62,7 +62,7 @@
         Opaque Error，将Sentinel Error封装在内部库中，不对外暴露，只提供公有方法进行错误判断
         
         ```go
-        type temporary interface{
+        type temporary interface {
       	    Temporary() bool
         }
         
