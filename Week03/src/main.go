@@ -1,48 +1,26 @@
 package main
 
 import (
+	"Week03/src/errgroup"
 	"context"
+	"fmt"
+	"github.com/pkg/errors"
 	"net/http"
 )
 
-type A interface {
-}
-
 func main() {
-
-	down := make(chan error)
-	stop := make(chan struct{})
-
-	go func() {
-		down <- serverApp(stop)
-	}()
-
-	context.Background()
-
-	for i := 0; i < cap(down); i++ {
-		if err := <-down; err != nil {
-			close(stop)
-		}
+	fmt.Println("123")
+	group := errgroup.WithCancel(context.Background()).WithPool(10)
+	group.Go(func(ctx context.Context) error {
+		return http.ListenAndServe("http://127.0.0.1:8080", nil)
+	})
+	group.Go(func(ctx context.Context) error {
+		//return http.ListenAndServe("http://127.0.0.1:8081", nil)
+		return errors.New("123")
+	})
+	fmt.Println("123")
+	err := group.Wait()
+	if err != nil {
+		_ = fmt.Errorf("%+v", errors.Wrap(err, "启动服务出现异常"))
 	}
-	for {
-		select {
-		case <-stop:
-			break
-		}
-	}
-
-}
-
-func serverApp(stop chan struct{}) error {
-
-	go func() {
-		<-stop
-		Shutdown()
-	}()
-
-	return http.ListenAndServe("127.0.0.1:8080", nil)
-}
-
-func Shutdown() {
-
 }
