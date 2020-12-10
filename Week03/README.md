@@ -137,7 +137,39 @@
 
     1. Once 双重检查锁，执行且仅执行一次f函数
         
+7. context包
+
+    在服务器请求的生命周期中的function链应该传递Context
+    
+    可以选择性的使用WithCancel、WithDeadline、WithTimeout、WithValue等包装上下文
+    
+    父Context被取消之后，所有派生的子Context都会被取消
+    
+    ```go
+    type Context interface {
+       // 返回可以被取消的上下文-任务被取消时时间 如果可以被取消，返回true
+       Deadline() (deadline time.Time, ok bool)
+       // 上下文被主动取消、超时时，会关闭channel
+       //   如果context不能被取消，则返回nil
+       Done() <-chan struct{}
+       // 如果Done没有被close，返回nil
+       // 如果Context被取消之后，返回Canceled
+       // 如果Context超时，返回DeadlineExceeded（这里的error是一个结构体，而不是指针）
+       Err() error
+       // 存储请求层面的key-value
+       Value(key interface{}) interface{}
+    }
+    ```
+    
+    1. 应用
+    
+        - 超时控制
+        - 主动取消
+        - 全局携带（与业务无关的）k-v值
         
+        
+
+## 未完待续
 
 
 1. goroutine生命周期要清楚，避免goroutine泄露
