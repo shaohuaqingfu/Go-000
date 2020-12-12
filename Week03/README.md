@@ -139,33 +139,65 @@
         
 7. context包
 
-    在服务器请求的生命周期中的function链应该传递Context
+    **Request-Scope**
     
-    可以选择性的使用WithCancel、WithDeadline、WithTimeout、WithValue等包装上下文
+    - 在服务器请求的生命周期中的function链应该传递Context，例如当前用户的信息、授权令牌。
+    - 当一个请求被取消或者超时，goroutine内部启动的所有资源都应该被回收
+    - 内部启动的新的goroutine应该快速退出。
     
-    父Context被取消之后，所有派生的子Context都会被取消
+    **Context种类**
     
-    ```go
-    type Context interface {
-       // 返回可以被取消的上下文-任务被取消时时间 如果可以被取消，返回true
-       Deadline() (deadline time.Time, ok bool)
-       // 上下文被主动取消、超时时，会关闭channel
-       //   如果context不能被取消，则返回nil
-       Done() <-chan struct{}
-       // 如果Done没有被close，返回nil
-       // 如果Context被取消之后，返回Canceled
-       // 如果Context超时，返回DeadlineExceeded（这里的error是一个结构体，而不是指针）
-       Err() error
-       // 存储请求层面的key-value
-       Value(key interface{}) interface{}
-    }
-    ```
+        可以选择性的使用WithCancel、WithDeadline、WithTimeout、WithValue等包装上下文
     
-    1. 应用
+    - WithCancel
+        
+        当context被cancel之后，会将cancel的信号（close done chan）层层递归传递给所有派生的context，从而让整个调用链中的goroutine退出。
+        
+    - WithTimeout
     
-        - 超时控制
-        - 主动取消
-        - 全局携带（与业务无关的）k-v值
+        在发出cancel信号之前加一个超时的逻辑。WithTimeout(parent, timeout)等价于WithDeadline(parent, time.Now().Add(timeout))。
+        
+        ```go
+        t := time.Second * 10
+        ctx, cancelFunc := context.WithTimeout(context.Background(), t)
+        defer cancelFunc()
+        select {
+        case <-time.After(1 * time.Second):
+            fmt.Println("执行结束")
+        case <-ctx.Done():
+            fmt.Println("超时")
+        }
+        ```
+        
+    - WithDeadline
+    
+        可以应用于资源的回收，如还剩下多少时间时不足以执行任务，直接回收资源并结束等。
+        
+    - WithValue
+        
+        存储Key-Value键值对，存储时，要避免存储业务相关的信息。go允许在多个goroutine中传递context，所以Value方法获取值是线程安全的，应该尽量保证它里面的值是不可变的。
+        
+        调用function (c *valueCtx) Value(key interface{}) interface{}获取时，go会依次递归获取value值，从child到parent，Background和TODO会返回nil。
+
+        在context中存储map，在多个goroutine中修改、读取map中的值有可能会出现data race。通常读多写少，我们会使用COW的技巧，在新建Context的之前，先使用COW创建map的副本。各个Context中的数据不会被其他Context污染。
+    
+    **Context接口**
+        
+        ```go
+        type Context interface {
+           // 返回可以被取消的上下文-任务被取消时时间 如果可以被取消，返回true
+           Deadline() (deadline time.Time, ok bool)
+           // 上下文被主动取消、超时时，会关闭channel
+           //   如果context不能被取消，则返回nil
+           Done() <-chan struct{}
+           // 如果Done没有被close，返回nil
+           // 如果Context被取消之后，返回Canceled
+           // 如果Context超时，返回DeadlineExceeded（这里的error是一个结构体，而不是指针）
+           Err() error
+           // 存储请求层面的key-value
+           Value(key interface{}) interface{}
+        }
+        ```
         
         
 

@@ -10,10 +10,27 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 // 1.基于 errgroup 实现一个 http server 的启动和关闭 ，以及 linux signal 信号的注册和处理，要保证能够 一个退出，全部注销退出。
 func main() {
+	testTimeout()
+}
+
+func testTimeout() {
+	t := time.Second * 10
+	ctx, cancelFunc := context.WithTimeout(context.Background(), t)
+	defer cancelFunc()
+	select {
+	case <-time.After(1 * time.Second):
+		fmt.Println("执行结束")
+	case <-ctx.Done():
+		fmt.Println("超时")
+	}
+}
+
+func homework() {
 
 	exitChan := make(chan bool, 1)
 	signalChan := make(chan os.Signal, 1)
